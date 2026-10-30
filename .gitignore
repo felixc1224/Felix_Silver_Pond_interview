@@ -1,0 +1,31 @@
+# ---- Data: never commit images or archives (regenerated from data/raw/*.tar.gz) ----
+data/**
+!data/splits/
+!data/splits/*.csv
+!data/output/
+!data/output/.gitkeep
+!data/challenge/
+!data/challenge/.gitkeep
+!data/raw/
+!data/raw/README.md
+
+# ---- Trained weights / logs: too big and reproducible from code + config ----
+outputs/models/*
+!outputs/models/.gitkeep
+outputs/logs/*
+!outputs/logs/.gitkeep
+
+# ---- Python ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# ---- Editors / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

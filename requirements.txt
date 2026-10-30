@@ -1,0 +1,9 @@
+# CPU-only PyTorch. Install torch/torchvision FIRST from the CPU index, then the rest:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install -r requirements.txt
+torch>=2.2
+torchvision>=0.17
+numpy>=1.26
+matplotlib>=3.8
+pyyaml>=6.0
+pytest>=8.0
