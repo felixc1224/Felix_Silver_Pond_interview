@@ -13,22 +13,22 @@ Checks:
   5. a grid of 8 random training images with their labels (visual check)
 """
 
-import argparse
-import sys
-from collections import Counter
-from pathlib import Path
+import argparse 
+import sys 
+from collections import Counter #help counting and verify the data number for each class"
+from pathlib import Path #help access the folder for our structure"
 
 import matplotlib
 import numpy as np
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT))                 # so `from src...` works
+REPO_ROOT = Path(__file__).resolve().parents[1] #helping from dataset to access the parent folder "
+sys.path.insert(0, str(REPO_ROOT)) #setup the reporoot to become easy to access like having index"                # so `from src...` works
 
 from src.dataset import SPLIT_DIR, build_dataloaders  # noqa: E402
 
-OUT_DIR = REPO_ROOT / "data" / "output"
+OUT_DIR = REPO_ROOT / "data" / "output" 
 
-
+"checking the image number that the data.py say is correct perclass"
 def check_counts(d):
     names = d["class_names"]
     print(f"classes ({len(names)}): {names}")
@@ -40,7 +40,7 @@ def check_counts(d):
     assert all(v == 500 for v in Counter(d["val"].labels.tolist()).values()), "val not stratified"
     print("OK counts")
 
-
+"checking is the train and validation is overlap or have extra copy important so data leaking not happen"
 def check_no_overlap(d):
     train_set, val_set = set(d["train_idx"].tolist()), set(d["val_idx"].tolist())
     overlap = train_set & val_set
@@ -50,7 +50,7 @@ def check_no_overlap(d):
     print(f"split CSVs: {SPLIT_DIR / 'train_idx.csv'} , {SPLIT_DIR / 'val_idx.csv'}")
     print("OK no overlap, full coverage")
 
-
+"check the actually datat checking the size,pixel value and other format"
 def check_batch_shapes(d):
     for split in ("train", "val", "test"):
         x, y = next(iter(d[f"{split}_loader"]))
@@ -59,7 +59,7 @@ def check_batch_shapes(d):
         assert 0.0 <= x.min() and x.max() <= 1.0, "expected [0,1] pixel range with no transform"
     print("OK batch shapes")
 
-
+"make human can visuall verify the label and picture is correct"
 def show_random_samples(d, n_show=8, seed=None, show=False):
     import matplotlib.pyplot as plt
 

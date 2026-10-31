@@ -44,6 +44,7 @@ CIFAR10_STD = (0.2470, 0.2435, 0.2616)
 # ----------------------------------------------------------------------------
 # Step 1: extract + read the raw pickle batches
 # ----------------------------------------------------------------------------
+"extract the cifar-10 achive"
 def extract_if_needed() -> Path:
     """Unpack the tar.gz once. Later runs skip this because the folder exists."""
     if not BATCHES_DIR.exists():
@@ -53,7 +54,7 @@ def extract_if_needed() -> Path:
             tar.extractall(RAW_DIR)
     return BATCHES_DIR
 
-
+"change the format"
 def _read_batch(path: Path) -> tuple[np.ndarray, np.ndarray]:
     """One pickle -> (images uint8 [N,32,32,3], labels int64 [N])."""
     with open(path, "rb") as f:
@@ -117,7 +118,7 @@ def _read_split_csv(path: Path) -> np.ndarray:
     with open(path, newline="") as f:
         return np.array([int(row["index"]) for row in csv.DictReader(f)], dtype=np.int64)
 
-
+"reuse the exisiting one or save the new one"
 def get_or_create_split(y_train: np.ndarray, class_names: list[str],
                         val_per_class: int = 500, seed: int = 42,
                         force: bool = False) -> tuple[np.ndarray, np.ndarray]:
@@ -159,7 +160,7 @@ class CIFAR10Arrays(Dataset):
             img = img.float() / 255.0  # plain [0,1] scaling if no transform given
         return img, int(self.labels[i])
 
-
+"assemble the trainning,valdiaiton  and test into datasets"
 def build_datasets(train_transform=None, eval_transform=None,
                    val_per_class: int = 500, seed: int = 42) -> dict:
     """Assemble train / val / test Datasets plus the metadata we need elsewhere."""
@@ -175,7 +176,7 @@ def build_datasets(train_transform=None, eval_transform=None,
         val_idx=val_idx,
     )
 
-
+"wraps the data before it go to the model"
 def build_dataloaders(batch_size: int = 128, num_workers: int = 0, **kwargs) -> dict:
     """
     DataLoaders for CPU training.
