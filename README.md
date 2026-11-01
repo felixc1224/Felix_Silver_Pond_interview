@@ -13,9 +13,10 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 |------|------|-------|
 | 1 | Folder structure, WSL environment, data cleanup | done |
 | 2 | Data loader + stratified train/val split + verification script | done — **v1, AI-written, human review pending** |
-| 3 | Model (small CNN) | next |
-| 4 | Training loop, learning curves | todo |
-| 5 | Evaluation: confusion matrix, per-class accuracy, test set | todo |
+| 3 | Config + TinyCNN model + layer visualisation page | done — reviewed |
+| 3b | Test suite (pytest) for dataset + model | done |
+| 4 | Training loop (`src/train.py`) + transforms/augmentation | done — AI-written, review pending |
+| 5 | Evaluation (`src/evaluate.py`): curves, confusion matrix, per-class, calibration, worst mistakes | done — AI-written, review pending |
 | 6 | Predict on my own images (`data/challenge/`) | todo |
 
 ## Folder structure
@@ -28,13 +29,15 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 ├── configs/            # experiment settings (YAML), e.g. baseline.yaml
 ├── src/                # the actual code, imported as a package
 │   ├── dataset.py      # load CIFAR-10 pickles -> numpy -> stratified split -> torch Dataset/DataLoader
-│   ├── model.py        # (next) CNN definition
-│   ├── train.py        # (todo) training loop
-│   ├── evaluate.py     # (todo) metrics, confusion matrix
+│   ├── model.py        # TinyCNN + build_model / layer_table helpers
+│   ├── train.py        # training loop: epochs, logging, best checkpoint, early stopping
+│   ├── evaluate.py     # metrics (numpy) + all evaluation figures as PNG
 │   └── predict.py      # (todo) run the trained model on new images
 ├── scripts/            # runnable entry points
-│   └── verify_data.py  # sanity-check the data pipeline (counts, overlap, shapes, sample grid)
-├── tests/              # pytest unit tests (todo)
+│   ├── verify_data.py  # sanity-check the data pipeline (counts, overlap, shapes, sample grid)
+│   ├── visualize_layers.py          # real images through every layer -> interactive HTML
+│   └── layer_walkthrough_template.html
+├── tests/              # pytest: conftest.py (fixtures), test_dataset.py, test_model.py, test_metrics.py (todo)
 ├── data/
 │   ├── raw/            # cifar-10-python.tar.gz  (NOT in git — see data/raw/README.md)
 │   ├── splits/         # train_idx.csv, val_idx.csv — the fixed train/val split (in git)
@@ -47,6 +50,7 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 │   ├── ai-chat-history/  # verbatim AI conversation log, one file per session
 │   ├── decision-log.md   # decisions + alternatives considered
 │   ├── experiments.md    # what was tried, results
+│   ├── experiments/      # saved figures + logs per run (e.g. baseline_tinycnn_cloud_run/)
 │   └── learning-notes.md # my own notes / explanations in simple English
 └── app/                # (later) small demo app
 ```
@@ -56,9 +60,11 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 ```bash
 cd /mnt/c/uni/2026_sem2/SilverPond_Interview_Test
 
-# 1. virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
+# 1. virtual environment — on the LINUX side of WSL, not under /mnt/c.
+#    Importing torch opens thousands of small files; through the /mnt/c bridge that takes
+#    minutes instead of seconds. The project itself can stay on C:.
+python3 -m venv ~/.venvs/silverpond
+source ~/.venvs/silverpond/bin/activate
 
 # 2. CPU build of PyTorch first (the default pip build pulls ~2 GB of CUDA libraries we don't need)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
@@ -85,7 +91,39 @@ python scripts/verify_data.py --seed 7 # pick a different set of 8 random images
 Expected: `train: 45000`, `val: 5000` (exactly 500 per class), `test: 10000`,
 `overlap: 0`, batches of shape `(128, 3, 32, 32)` in range [0, 1], and `ALL CHECKS PASSED`.
 
-Later steps (train / evaluate / predict) will be added here as they are built.
+# Step 3 — model and visualisation
+python -m src.model                     # print layer table + parameter count
+python scripts/visualize_layers.py      # writes data/output/layer_walkthrough.html (open in a browser)
+python scripts/visualize_layers.py --checkpoint outputs/models/best.pt   # after training
+
+# Step 4 — train (CPU; ~10 s/epoch on 2 cores, so the 15-epoch baseline is a few minutes)
+python -m src.train --smoke             # 2 epochs x 5 batches: check the plumbing first (~3 s)
+python -m src.train                     # full run from configs/baseline.yaml
+python -m src.train --config configs/other.yaml --epochs 20
+#   -> outputs/logs/<experiment>.csv, outputs/models/<experiment>_best.pt / _last.pt
+
+# Step 5 — evaluate (on the VALIDATION set by default)
+python -m src.evaluate                  # uses outputs/models/baseline_tinycnn_best.pt
+python -m src.evaluate --checkpoint outputs/models/<experiment>_best.pt
+python -m src.evaluate --split test     # the sealed test set: run ONCE, for the final model only
+#   -> data/output/<experiment>/<split>/  learning_curves.png, confusion_matrix.png,
+#      per_class_accuracy.png, calibration.png, worst_mistakes.png, metrics.json, summary.md
+
+Later steps (predict) will be added here as they are built.
+
+## Tests
+
+```bash
+pytest -v          # 44 tests, a few seconds
+```
+
+`tests/test_dataset.py` checks the split (sizes, stratification, no train/val overlap, determinism,
+the committed CSVs are unchanged) and the Dataset class. `tests/test_model.py` checks TinyCNN's
+shapes against the docstring table, the exact parameter count, config loading and its error
+messages, gradient flow to every parameter, dropout behaviour, and a regression test for the
+in-place-ReLU recorder bug found during review. Dataset tests skip (not fail) if the archive is
+missing. `tests/test_metrics.py` checks the numpy metric functions (confusion matrix, per-class
+precision/recall/F1, top-k, calibration/ECE) against hand-computed answers. 44 tests total.
 
 ## Data
 

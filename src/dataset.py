@@ -44,7 +44,6 @@ CIFAR10_STD = (0.2470, 0.2435, 0.2616)
 # ----------------------------------------------------------------------------
 # Step 1: extract + read the raw pickle batches
 # ----------------------------------------------------------------------------
-"extract the cifar-10 achive"
 def extract_if_needed() -> Path:
     """Unpack the tar.gz once. Later runs skip this because the folder exists."""
     if not BATCHES_DIR.exists():
@@ -54,7 +53,7 @@ def extract_if_needed() -> Path:
             tar.extractall(RAW_DIR)
     return BATCHES_DIR
 
-"change the format"
+
 def _read_batch(path: Path) -> tuple[np.ndarray, np.ndarray]:
     """One pickle -> (images uint8 [N,32,32,3], labels int64 [N])."""
     with open(path, "rb") as f:
@@ -118,7 +117,7 @@ def _read_split_csv(path: Path) -> np.ndarray:
     with open(path, newline="") as f:
         return np.array([int(row["index"]) for row in csv.DictReader(f)], dtype=np.int64)
 
-"reuse the exisiting one or save the new one"
+
 def get_or_create_split(y_train: np.ndarray, class_names: list[str],
                         val_per_class: int = 500, seed: int = 42,
                         force: bool = False) -> tuple[np.ndarray, np.ndarray]:
@@ -160,7 +159,7 @@ class CIFAR10Arrays(Dataset):
             img = img.float() / 255.0  # plain [0,1] scaling if no transform given
         return img, int(self.labels[i])
 
-"assemble the trainning,valdiaiton  and test into datasets"
+
 def build_datasets(train_transform=None, eval_transform=None,
                    val_per_class: int = 500, seed: int = 42) -> dict:
     """Assemble train / val / test Datasets plus the metadata we need elsewhere."""
@@ -176,7 +175,7 @@ def build_datasets(train_transform=None, eval_transform=None,
         val_idx=val_idx,
     )
 
-"wraps the data before it go to the model"
+
 def build_dataloaders(batch_size: int = 128, num_workers: int = 0, **kwargs) -> dict:
     """
     DataLoaders for CPU training.
@@ -190,3 +189,49 @@ def build_dataloaders(batch_size: int = 128, num_workers: int = 0, **kwargs) -> 
         test_loader=DataLoader(ds["test"], batch_size=batch_size, shuffle=False, num_workers=num_workers),
     )
     return {**ds, **loaders}   # datasets under 'train'/'val'/'test', loaders under '*_loader'
+
+
+# ----------------------------------------------------------------------------
+# Step 4: transforms from the config (used by train / evaluate / predict)
+# ----------------------------------------------------------------------------
+def build_transforms(cfg: dict):
+    """
+    Returns (train_transform, eval_transform) built from cfg['data'].
+
+    Both take a uint8 CHW tensor and return float32 CHW.
+    train: [random crop with padding] -> [random horizontal flip] -> float [0,1] -> normalise
+    eval:                                                            float [0,1] -> normalise
+    Augmentation is train-only; normalisation is applied to both (the model
+    expects the same input statistics at train and test time).
+    """
+    from torchvision.transforms import v2 as T
+
+    d = cfg["data"]
+    aug = d.get("augment", {}) or {}
+    to_float = T.ToDtype(torch.float32, scale=True)           # uint8 0..255 -> float 0..1
+    norm = [T.Normalize(CIFAR10_MEAN, CIFAR10_STD)] if d.get("normalize", True) else []
+
+    train_ops = []
+    if aug.get("random_crop_pad", 0):
+        train_ops.append(T.RandomCrop(32, padding=aug["random_crop_pad"]))
+    if aug.get("horizontal_flip", False):
+        train_ops.append(T.RandomHorizontalFlip())
+    train_tf = T.Compose(train_ops + [to_float] + norm)
+    eval_tf = T.Compose([to_float] + norm)
+    return train_tf, eval_tf
+
+
+def dataloaders_from_config(cfg: dict) -> dict:
+    """One call for train.py / evaluate.py: transforms + loaders exactly as the YAML says."""
+    train_tf, eval_tf = build_transforms(cfg)
+    d = cfg["data"]
+    return build_dataloaders(batch_size=d["batch_size"], num_workers=d.get("num_workers", 0),
+                             train_transform=train_tf, eval_transform=eval_tf,
+                             val_per_class=d.get("val_per_class", 500))
+
+
+def denormalize(img: torch.Tensor) -> torch.Tensor:
+    """Undo Normalize so a tensor can be shown with imshow. [3,H,W] or [B,3,H,W]."""
+    mean = torch.tensor(CIFAR10_MEAN).view(-1, 1, 1)
+    std = torch.tensor(CIFAR10_STD).view(-1, 1, 1)
+    return (img * std + mean).clamp(0, 1)

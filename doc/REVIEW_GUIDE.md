@@ -124,3 +124,9 @@ Rule for the whole review: open a Python shell from the repo root
 - [ ] Write 3–5 lines in `doc/decision-log.md`: Option 1 (arrays in memory) vs Option 2 (PNGs); 90/10 stratified; seed 42; CSV split files.
 - [ ] Note in `doc/ai-findings.md`: the `train`/`train_loader` key-collision bug and how the verify script caught it.
 - [ ] List any questions I still have -> ask before the model step.
+
+---
+
+## Standing reminders (added during reviews)
+
+- [ ] **Keep the `src/model.py` docstring shape table in sync.** Whenever `conv_channels`, `fc_hidden`, dropout or the layer order changes (hyperparameter tuning, swapping in a bigger model), update the table at the top of `model.py`. Run `python -m src.model` and paste the real numbers rather than editing by hand. (Ibi, session 03)
