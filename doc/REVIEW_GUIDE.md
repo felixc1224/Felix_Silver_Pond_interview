@@ -130,3 +130,4 @@ Rule for the whole review: open a Python shell from the repo root
 ## Standing reminders (added during reviews)
 
 - [ ] **Keep the `src/model.py` docstring shape table in sync.** Whenever `conv_channels`, `fc_hidden`, dropout or the layer order changes (hyperparameter tuning, swapping in a bigger model), update the table at the top of `model.py`. Run `python -m src.model` and paste the real numbers rather than editing by hand. (Ibi, session 03)
+- [ ] **End-of-project changes (agreed during predict.py review, session 03):** (1) add `--crop {center,squash,none}` to `src/predict.py` with a test; `none` raises a clear error for non-square inputs. (2) store `class_names` in the checkpoint (`train.py`) and read them back in `predict.py` instead of the hard-coded list.

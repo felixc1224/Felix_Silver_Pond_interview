@@ -17,7 +17,8 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 | 3b | Test suite (pytest) for dataset + model | done |
 | 4 | Training loop (`src/train.py`) + transforms/augmentation | done — AI-written, review pending |
 | 5 | Evaluation (`src/evaluate.py`): curves, confusion matrix, per-class, calibration, worst mistakes | done — AI-written, review pending |
-| 6 | Predict on my own images (`data/challenge/`) | todo |
+| 6 | Predict on my own images (`src/predict.py`, `data/challenge/`) | done — AI-written, review pending |
+| 7 | Experiments: epochs, dropout, extra conv block, BatchNorm | next |
 
 ## Folder structure
 
@@ -32,7 +33,7 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 │   ├── model.py        # TinyCNN + build_model / layer_table helpers
 │   ├── train.py        # training loop: epochs, logging, best checkpoint, early stopping
 │   ├── evaluate.py     # metrics (numpy) + all evaluation figures as PNG
-│   └── predict.py      # (todo) run the trained model on new images
+│   └── predict.py      # your own photos -> ranked predictions + contact sheet
 ├── scripts/            # runnable entry points
 │   ├── verify_data.py  # sanity-check the data pipeline (counts, overlap, shapes, sample grid)
 │   ├── visualize_layers.py          # real images through every layer -> interactive HTML
@@ -109,12 +110,20 @@ python -m src.evaluate --split test     # the sealed test set: run ONCE, for the
 #   -> data/output/<experiment>/<split>/  learning_curves.png, confusion_matrix.png,
 #      per_class_accuracy.png, calibration.png, worst_mistakes.png, metrics.json, summary.md
 
-Later steps (predict) will be added here as they are built.
+# Step 6 — predict on your own photos (drop JPG/PNG files into data/challenge/)
+python -m src.predict                               # every image in data/challenge/, top-3
+python -m src.predict --input data/challenge/cat.jpg --top 5
+#   -> data/output/<experiment>/challenge/predictions.csv + contact_sheet.png
+#      (original | the 32x32 the model actually saw | top-k bars)
+# Pre-processing: EXIF rotate -> RGB -> centre-crop square -> 32x32 -> normalise.
+# Expect lower accuracy than on val: phone photos are a different domain from CIFAR.
+# The four _synthetic_*.{jpg,png} files are CIFAR test images disguised as phone photos
+# (borders, EXIF rotation, alpha, greyscale) to prove the pre-processing paths work.
 
 ## Tests
 
 ```bash
-pytest -v          # 44 tests, a few seconds
+pytest -v          # 49 tests, a few seconds
 ```
 
 `tests/test_dataset.py` checks the split (sizes, stratification, no train/val overlap, determinism,
@@ -123,7 +132,9 @@ shapes against the docstring table, the exact parameter count, config loading an
 messages, gradient flow to every parameter, dropout behaviour, and a regression test for the
 in-place-ReLU recorder bug found during review. Dataset tests skip (not fail) if the archive is
 missing. `tests/test_metrics.py` checks the numpy metric functions (confusion matrix, per-class
-precision/recall/F1, top-k, calibration/ECE) against hand-computed answers. 44 tests total.
+precision/recall/F1, top-k, calibration/ECE) against hand-computed answers. `tests/test_inference.py`
+checks the photo pre-processing (mode conversion, EXIF rotation, centre crop, normalisation, ranked
+output). 49 tests total.
 
 ## Data
 
