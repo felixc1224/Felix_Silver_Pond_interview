@@ -1,0 +1,34 @@
+# Experiment 04 — baseline with scheduler cosine -> none (constant lr 0.05). Only scheduler changed.
+# Every knob lives here so an experiment is "copy this file, change a number".
+
+experiment: exp04_sched_none
+seed: 42                      # torch / numpy seed for weight init + shuffling (NOT the split seed)
+
+data:
+  val_per_class: 500          # 10 classes x 500 = 5,000 validation images (split seed is fixed at 42 in dataset.py)
+  batch_size: 128
+  num_workers: 0              # data is in RAM; workers would add overhead on WSL
+  normalize: true             # subtract per-channel mean, divide by std (CIFAR10_MEAN / CIFAR10_STD)
+  augment:
+    random_crop_pad: 4        # pad 4 px then random 32x32 crop (train only); 0 disables
+    horizontal_flip: true     # random left-right flip (train only)
+
+model:
+  name: tiny_cnn
+  conv_channels: [16, 32]     # output channels of conv block 1 and 2
+  fc_hidden: 128              # units in the hidden fully-connected layer
+  dropout: 0.0                # 0 = off for the first run; try 0.25-0.5 if val lags train
+
+train:
+  epochs: 15
+  optimizer: sgd              # sgd | adam
+  lr: 0.05                    # starting learning rate (SGD); use ~1e-3 for adam
+  momentum: 0.9
+  weight_decay: 5.0e-4        # L2 penalty on weights
+  scheduler: none             # cosine | step | none
+  early_stopping_patience: 5  # stop if val accuracy hasn't improved for N epochs; 0 disables
+
+paths:
+  models_dir: outputs/models
+  logs_dir: outputs/logs
+  figures_dir: data/output

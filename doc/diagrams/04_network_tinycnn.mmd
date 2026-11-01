@@ -1,0 +1,15 @@
+flowchart LR
+    I0[input<br/>3 × 32 × 32]
+    subgraph B1[conv block 1]
+        direction TB
+        C1[conv1 3×3 pad 1<br/>3→16 ch · 448 params<br/>out 16×32×32] --> R1[ReLU] --> P1[maxpool 2×2<br/>out 16×16×16]
+    end
+    subgraph B2[conv block 2]
+        direction TB
+        C2[conv2 3×3 pad 1<br/>16→32 ch · 4,640 params<br/>out 32×16×16] --> R2[ReLU] --> P2[maxpool 2×2<br/>out 32×8×8]
+    end
+    subgraph HEAD[classifier]
+        direction TB
+        FL[flatten<br/>32·8·8 = 2048] --> F1[fc1 2048→128<br/>262,272 params] --> R3[ReLU] --> DO[dropout p=0] --> F2[fc2 128→10<br/>1,290 params]
+    end
+    I0 --> B1 --> B2 --> HEAD --> OUT[10 logits<br/>→ softmax → probabilities]

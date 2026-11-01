@@ -1,0 +1,21 @@
+flowchart TD
+    A[baseline.yaml] --> B[set_seed 42]
+    B --> C[dataloaders_from_config<br/>train: crop+flip+normalise<br/>val: normalise only]
+    C --> D[build_model → TinyCNN<br/>268,650 params]
+    D --> E[optimizer SGD lr 0.05 mom 0.9<br/>scheduler cosine · loss CrossEntropy]
+    E --> F[write run card<br/>outputs/logs/exp_config.md]
+    F --> G{{for epoch 1..15}}
+    G --> H[run_epoch TRAIN<br/>352 batches × 128<br/>forward → loss → backward → step]
+    H --> I[run_epoch VAL<br/>40 batches · no grad · no step]
+    I --> J[scheduler.step<br/>lr decays]
+    J --> K[append CSV row<br/>epoch lr losses accs seconds]
+    K --> L{val acc<br/>improved?}
+    L -- yes --> M[save *_best.pt<br/>reset patience]
+    L -- no --> N[patience += 1]
+    M --> O[save *_last.pt]
+    N --> O
+    O --> P{patience ≥ 5<br/>or loss NaN?}
+    P -- no --> G
+    P -- yes --> Q[stop]
+    G -- done --> Q
+    Q --> R[best val acc · best epoch · paths]

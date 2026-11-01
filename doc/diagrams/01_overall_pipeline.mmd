@@ -1,0 +1,21 @@
+flowchart LR
+    A[data/raw/<br/>cifar-10-python.tar.gz<br/>MD5 verified] --> B[src/dataset.py<br/>extract · load · split]
+    B --> C[(data/splits/<br/>train_idx.csv<br/>val_idx.csv)]
+    B --> D[train 45,000]
+    B --> E[val 5,000]
+    B --> F[test 10,000<br/>sealed]
+    G[configs/baseline.yaml] --> H[src/model.py<br/>TinyCNN]
+    G --> I[src/train.py]
+    D --> I
+    E --> I
+    H --> I
+    I --> J[(outputs/models/<br/>*_best.pt)]
+    I --> K[(outputs/logs/<br/>*.csv · *_config.md)]
+    J --> L[src/evaluate.py]
+    E --> L
+    K --> L
+    L --> M[(data/output/exp/val/<br/>5 PNG · metrics.json · summary.md)]
+    J --> N[src/predict.py]
+    O[data/challenge/<br/>my photos] --> N
+    N --> P[(data/output/exp/challenge/<br/>contact_sheet.png · predictions.csv)]
+    Q[tests/ · 49 pytest<br/>dataset · model · metrics · inference]

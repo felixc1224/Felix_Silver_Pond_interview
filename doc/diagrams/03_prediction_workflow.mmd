@@ -1,0 +1,14 @@
+flowchart TD
+    A[photo: JPG / PNG / any size] --> B[load_image<br/>EXIF rotate → RGB]
+    B --> C[to_cifar_size<br/>centre-crop square → 32×32 LANCZOS]
+    C --> D[to_model_tensor<br/>HWC→CHW · float · normalise<br/>same eval transform as validation]
+    D --> E[TinyCNN forward<br/>weights from *_best.pt<br/>model.eval, no grad]
+    E --> F[10 logits]
+    F --> G[softmax → 10 probabilities]
+    G --> H[argsort → top-k<br/>class name + confidence]
+    H --> I[terminal table]
+    H --> J[predictions.csv]
+    H --> K[contact_sheet.png<br/>original · 32×32 seen · top-k bars]
+    X[*_best.pt] --> Y[cfg → build_model<br/>cfg → build_transforms]
+    Y --> D
+    Y --> E
