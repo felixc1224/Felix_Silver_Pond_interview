@@ -18,7 +18,8 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 | 4 | Training loop (`src/train.py`) + transforms/augmentation | done — AI-written, review pending |
 | 5 | Evaluation (`src/evaluate.py`): curves, confusion matrix, per-class, calibration, worst mistakes | done — AI-written, review pending |
 | 6 | Predict on my own images (`src/predict.py`, `data/challenge/`) | done — AI-written, review pending |
-| 7 | Experiments: epochs, dropout, extra conv block, BatchNorm | next |
+| 7 | Experiments: lr, epochs, scheduler (configs `exp01`–`exp04`) | done — see `doc/experiments.md` |
+| 8 | Architecture experiments: BatchNorm, extra conv block | next |
 
 ## Folder structure
 
@@ -27,7 +28,7 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 ├── README.md
 ├── requirements.txt
 ├── .gitignore
-├── configs/            # experiment settings (YAML), e.g. baseline.yaml
+├── configs/            # one YAML per experiment: baseline.yaml, exp01_… exp04_…
 ├── src/                # the actual code, imported as a package
 │   ├── dataset.py      # load CIFAR-10 pickles -> numpy -> stratified split -> torch Dataset/DataLoader
 │   ├── model.py        # TinyCNN + build_model / layer_table helpers
@@ -37,7 +38,8 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 ├── scripts/            # runnable entry points
 │   ├── verify_data.py  # sanity-check the data pipeline (counts, overlap, shapes, sample grid)
 │   ├── visualize_layers.py          # real images through every layer -> interactive HTML
-│   └── layer_walkthrough_template.html
+│   ├── layer_walkthrough_template.html
+│   └── run_experiment.sh            # train -> evaluate -> predict for one config
 ├── tests/              # pytest: conftest.py (fixtures), test_dataset.py, test_model.py, test_metrics.py (todo)
 ├── data/
 │   ├── raw/            # cifar-10-python.tar.gz  (NOT in git — see data/raw/README.md)
@@ -52,6 +54,9 @@ before the next one starts. The full conversation is kept verbatim in `doc/ai-ch
 │   ├── decision-log.md   # decisions + alternatives considered
 │   ├── experiments.md    # what was tried, results
 │   ├── experiments/      # saved figures + logs per run (e.g. baseline_tinycnn_cloud_run/)
+│   ├── pipeline.md       # diagrams (pipeline, training, prediction, network) + baseline results
+│   ├── diagrams/         # the diagrams as PNG + editable Mermaid .mmd
+│   ├── REVIEW_GUIDE.md   # review checklist + standing reminders / end-of-project changes
 │   └── learning-notes.md # my own notes / explanations in simple English
 └── app/                # (later) small demo app
 ```
@@ -120,6 +125,12 @@ python -m src.predict --input data/challenge/cat.jpg --top 5
 # The four _synthetic_*.{jpg,png} files are CIFAR test images disguised as phone photos
 # (borders, EXIF rotation, alpha, greyscale) to prove the pre-processing paths work.
 
+# Step 7 — experiments: one config per run, train -> evaluate -> predict in one command
+bash scripts/run_experiment.sh exp01_lr_third        # any name in configs/<name>.yaml
+#   -> outputs/logs/<name>.csv + <name>_config.md (run card), outputs/models/<name>_best.pt,
+#      data/output/<name>/val/ and /challenge/
+# New experiment: copy configs/baseline.yaml, change `experiment:` and the knobs, run, add a row to doc/experiments.md
+
 ## Tests
 
 ```bash
@@ -135,6 +146,19 @@ missing. `tests/test_metrics.py` checks the numpy metric functions (confusion ma
 precision/recall/F1, top-k, calibration/ECE) against hand-computed answers. `tests/test_inference.py`
 checks the photo pre-processing (mode conversion, EXIF rotation, centre crop, normalisation, ranked
 output). 49 tests total.
+
+## Experiments so far
+
+| config | what changed vs baseline |
+|---|---|
+| `configs/baseline.yaml` | — (lr 0.05, 15 epochs, cosine) |
+| `configs/exp01_lr_third.yaml` | lr 0.05 → 0.0167 |
+| `configs/exp02_lr_third_45ep.yaml` | lr 0.0167 and epochs 15 → 45 |
+| `configs/exp03_sched_step.yaml` | scheduler cosine → step |
+| `configs/exp04_sched_none.yaml` | scheduler cosine → none (constant lr) |
+
+Results and my observations: `doc/experiments.md`. Pipeline / training / prediction / network diagrams
+and the baseline numbers: `doc/pipeline.md` (sources in `doc/diagrams/*.mmd`).
 
 ## Data
 

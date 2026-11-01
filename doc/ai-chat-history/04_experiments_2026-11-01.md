@@ -280,3 +280,72 @@ that should be it in our experiemtn lets push it first
 ## Claude
 
 Expected in `git status`: the four new configs (`exp01`–`exp04`), `scripts/run_experiment.sh`, `doc/pipeline.md`, `doc/diagrams/` (4 PNG + 4 MMD), `doc/REVIEW_GUIDE.md`, `doc/experiments.md` if you filled rows in, the session-04 chat log, and whichever `data/challenge/` images you chose to track. Not expected: anything under `outputs/` or `data/output/` — your experiment figures stay local unless you copy the ones you want into `doc/experiments/<name>/`, which is worth doing for the runs you'll cite. Suggested message: `Add experiment configs 01-04, run_experiment.sh, pipeline diagrams and results doc`.
+
+---
+
+## Ibi
+
+i think u forget to update the read,me
+
+## Claude
+
+You're right — the README still ends at predict and doesn't mention the experiment configs, the runner script, or the diagrams doc. Updating it now.
+
+README updated: status table rows 7–8, a "Step 7 — experiments" block in the run commands (the `run_experiment.sh` usage and the new-experiment recipe), a new "Experiments so far" section listing the four configs and what each changes, and the folder tree now shows `run_experiment.sh`, `doc/pipeline.md`, `doc/diagrams/` and `REVIEW_GUIDE.md`. Add it to the commit.
+
+---
+
+## Ibi
+
+help me make my self learning write from i learn  i read our chat history to more understand it so here is couple i already have a bit experince with neural network and computer vision from uni , but the main goal is teh result bcs i am for mark , this time i try put more focus to understand how the model working and tunning the pararmter and to see the accurcy by myself instead of asking calude is this good enough or not but still give a room for claude to give suggestion or alternative. in school i normal waste more time focus on the model code not too much on the other  also teh intruction is made the model is msolty choose for use but this time i can have reasonign and why i chooose this model where my reason is bcs i wanna keep simple and open a cahnge of addign alyer for experiment. this more dot point of what i learn and we found
+
+I learn more about how each file connect to each other.
+
+* `dataset.py` is for loading and preparing data before feed to model.
+* `model.py` is where we build the CNN architecture.
+* `train.py` is for training the model and updating the weight.
+* `evaluate.py` help us check the result and see where the model is good or bad.
+* I learn why we need to check data split, overlapping index, image size and labels.
+* The HTML visualisation help me understand what happen in each CNN layer.
+* I like the `layer_table` function because it can automatically check the output dimension of each layer.
+
+Claude actually make some mistake during building the code.
+* One is using same dictionary key and cause problem in data loader.
+* Another one is the ReLU changing the value recorded for the layer visualisation.
+* Claude found these problem from its own testing and fixed it.
+* I didn't find these two bugs myself, but I learn why testing is important.
+* I also have problem with PyTorch import taking almost 1 minute.
+* After investigating, I move the virtual environment from Windows folder to Linux side of WSL.
+* After that it only take around 1 second.
+* So sometimes problem is not the Python code, but the environment itself.
+
+My baseline model get 77.70% validation accuracy.
+* I dont wanna just trust the number, so I check the confusion matrix.
+* 3885 correct out of 5000 images, which match 77.70%.
+* I also try input my own photo instead of only CIFAR-10 images.
+* My cat photo predicted as automobile with 96.3% confidence.
+* After I crop closer to the cat, prediction change to cat with 54% confidence.
+* I also try chimera image, I thought it will predict horse, cat or bird.
+* But it predict frog and airplane depending on image version.
+* This surprise me because high confidence doesn't mean the prediction is correct.
+
+couple of stuff that i find when we doing experiment aswell
+I wanted to know if learning rate and epochs have linear relationship.
+* From experiment I understand it is not that simple, because learning rate also change during training.
+* I also try comparing cosine, step and no scheduler.
+* This scheduler part is something I wasn't really familiar with before.
+
+where i think i can learn more  an dexperiment more is i should review more the evalution code, i learn them from uni and assignement   but not actually truly understand yet how it work .ifi ve more time i wannna make the small example data  that we know the correct result so i cna compare the output with the expect one.  something i ve in my head as the idea in the future for experiemtn i tell calude directly about to make everyhging  , then compare it with out lets claude make the decision will it cause more bug, or different design. how much the  unfamiliar sstuff that i create . I learn that using AI is not only about getting code that works. now i know Even if AI explain something confidently, I still need to check. I dont need to find mistake in every code, but I should know why it works. Sometimes my expectation is wrong, but testing it is how I learn. I think this project help me become more careful with AI-generated code and verifying the result.
+
+## Claude
+
+*(Claude wrote the draft into doc/learning-notes.md, organised into sections, keeping Ibi's wording and claims; checked 3,885/5,000 = 77.7%.)*
+
+Good draft — it's in your voice and that's what should stay. I've organised it into sections, tidied the grammar lightly, and kept every claim as you stated it (I checked the one number: 3,885 / 5,000 = 77.7% ✓). Nothing added that you didn't say. Written to `doc/learning-notes.md`; edit freely.
+
+`doc/learning-notes.md` is written (100 lines), structured as: where I started → how the files connect → mistakes Claude made → the environment problem → checking the result myself → experiments → where to learn more → working with AI. All your points, your wording, light grammar fixes only.
+
+Two honest notes before you commit it:
+
+- The experiments section currently has no numbers (I only had your words, not your conclusions). If you want it to carry weight, add one or two lines there with what you actually saw — e.g. the exp02 80.2% vs baseline 77.7%, and what the step/none runs did — in your own words. That's the part a reader will look for.
+- "Claude found both problems from its own testing" is accurate, but you can fairly add that the *process* (test before build, verify before the next step) was your rule from the first message. That's your contribution to those catches, and worth claiming.
