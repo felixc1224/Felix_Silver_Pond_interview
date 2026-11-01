@@ -1,0 +1,265 @@
+<title>TinyCNN Layer Walk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a lab notebook. One column of layer "slides" in network order, a horizontal shape-river on top. */
+  :root {
+    --bg: #f2f5f3; --surface: #ffffff; --fg: #1b2420; --muted: #5d6d66; --line: #d4dcd8;
+    --accent: #0b7a5a; --accent-soft: #d9efe6; --warn: #b4571b; --warn-soft: #f7e6d8;
+    --display: "Fraunces", Georgia, serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0f1513; --surface: #171f1c; --fg: #e3ebe7; --muted: #94a69e; --line: #2a3531;
+    --accent: #3ecf9b; --accent-soft: #163a2f; --warn: #e89a5c; --warn-soft: #3b2616; color-scheme: dark; } }
+  :root[data-theme="dark"] {
+    --bg: #0f1513; --surface: #171f1c; --fg: #e3ebe7; --muted: #94a69e; --line: #2a3531;
+    --accent: #3ecf9b; --accent-soft: #163a2f; --warn: #e89a5c; --warn-soft: #3b2616; color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5;
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+         padding-block: 24px 64px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-family: var(--display); font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 4px; text-wrap: balance; letter-spacing: -0.01em; }
+  h2 { font-family: var(--display); font-weight: 500; font-size: 1.35rem; margin: 0; }
+  p { margin: 0; max-width: 68ch; }
+  .lede { color: var(--muted); font-size: 1.02rem; }
+  .eyebrow { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-family: var(--mono); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.ok { background: var(--accent-soft); color: var(--accent); }
+  header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; color: var(--muted); font-size: 0.9rem; }
+
+  /* image picker */
+  .picker { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0 8px; }
+  .picker button { background: var(--surface); border: 2px solid var(--line); border-radius: 8px; padding: 6px; cursor: pointer; color: var(--fg); font-family: var(--body); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .picker button img { width: 72px; height: 72px; image-rendering: pixelated; border-radius: 4px; }
+  .picker button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .picker button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .picker small { font-family: var(--mono); font-size: 0.72rem; }
+
+  /* shape river */
+  .river-wrap { overflow-x: auto; padding-block: 8px; margin: 18px 0 32px; }
+  .river { display: flex; align-items: flex-end; gap: 6px; min-width: max-content; padding: 0 4px; }
+  .node { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .node .box { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 3px; display: grid; place-items: center; font-family: var(--mono); font-size: 0.65rem; color: var(--fg); }
+  .node .name { font-family: var(--mono); font-size: 0.66rem; color: var(--muted); white-space: nowrap; }
+  .node .name:first-of-type { color: var(--fg); }
+  .arrow { color: var(--muted); align-self: flex-end; padding-bottom: 36px; font-size: 0.9rem; }
+
+  /* layer cards */
+  .layers { display: flex; flex-direction: column; gap: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 12px; min-width: 0; }
+  .card.pure { border-style: dashed; }
+  .card-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; }
+  .shape { font-family: var(--mono); font-size: 0.85rem; color: var(--muted); }
+  .shape b { color: var(--accent); font-weight: 500; }
+  .stats { display: flex; flex-wrap: wrap; gap: 4px 18px; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+  .stats b { color: var(--fg); font-weight: 500; }
+  .explain { display: grid; gap: 6px; }
+  .explain .analogy { color: var(--muted); font-style: italic; }
+  .grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .grid figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .grid img { width: 64px; height: 64px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 3px; max-width: 100%; }
+  .grid img.big { width: 128px; height: 128px; }
+  .grid img.kernel { width: 48px; height: 48px; }
+  .grid figcaption { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+  .bars { display: flex; align-items: flex-end; gap: 1px; height: 90px; border-bottom: 1px solid var(--line); padding-bottom: 2px; min-width: 0; }
+  .bars span { flex: 1 1 0; background: var(--accent); min-width: 0; border-radius: 1px 1px 0 0; }
+  .bars span.neg { background: var(--warn); }
+  .classbars { display: grid; grid-template-columns: 7.5em 1fr 4.5em; gap: 6px 10px; align-items: center; font-size: 0.85rem; }
+  .classbars .track { background: var(--accent-soft); height: 14px; border-radius: 3px; overflow: hidden; }
+  .classbars .fill { background: var(--accent); height: 100%; }
+  .classbars .true .label { color: var(--accent); font-weight: 600; }
+  .note { background: var(--warn-soft); color: var(--warn); border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; font-family: var(--mono); font-size: 0.8rem; white-space: nowrap; }
+  th, td { text-align: left; padding: 4px 14px 4px 0; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: no-preference) { .classbars .fill { transition: width 300ms ease; } }
+  @media (max-width: 520px) { .grid img { width: 48px; height: 48px; } .grid img.big { width: 96px; height: 96px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">CIFAR-10 · src/model.py · TinyCNN v1</span>
+    <h1>What each layer does to a picture</h1>
+    <p class="lede">Pick one of the real training images below, then read down the page: every card is one layer, in the order the data flows, showing the actual numbers that layer produced for that image.</p>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <section>
+    <span class="eyebrow">Input image</span>
+    <div class="picker" id="picker" role="group" aria-label="Choose input image"></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Shape river — how the tensor changes size</span>
+    <div class="river-wrap"><div class="river" id="river"></div></div>
+  </section>
+
+  <section class="layers" id="layers"></section>
+
+  <section class="card" style="margin-top:24px">
+    <div class="card-head"><h2>Parameter budget</h2></div>
+    <p>Where the 268,650 learnable numbers live. Notice that one layer holds almost all of them.</p>
+    <div class="table-wrap"><table id="ptable"></table></div>
+  </section>
+</div>
+
+<script>
+const DATA = /*__DATA__*/;
+
+const TEXT = {
+  input:   { what: "The picture as numbers: three 32×32 sheets, one each for red, green and blue, every value scaled to 0–1.",
+             analogy: "Three transparencies stacked on a light table." },
+  conv1:   { what: "16 small 3×3 stencils slide over the image, one pixel at a time. Each stencil multiplies the 3×3×3 patch under it by its own weights and adds the results, producing one number per position. So each stencil yields one 32×32 'heat map' of where its pattern is. padding=1 adds a border of zeros so the size stays 32.",
+             analogy: "16 different pattern-detectors, each scanning the photo with its own tiny template (edge, colour change, blob) and marking where it fires." },
+  relu1:   { what: "Every negative number becomes 0; positives pass through unchanged. Shape unchanged. Watch the '% zeros' figure: that is how much ReLU switched off.",
+             analogy: "A one-way valve: 'pattern present' gets through, 'pattern absent' is dropped rather than counted as negative evidence." },
+  pool1:   { what: "Each 2×2 square is replaced by its largest value. Width and height halve (32→16), channels unchanged, so 4× fewer numbers. The strongest response survives; its exact position inside the square is forgotten.",
+             analogy: "Shrinking a map by keeping only the tallest building in each block." },
+  conv2:   { what: "32 stencils, each now 3×3 across all 16 incoming maps (3×3×16 = 144 weights + 1 bias). Each one combines several simple patterns from conv1 into a more complex one.",
+             analogy: "Where conv1 found edges, conv2 can find corners and textures made of edges." },
+  relu2:   { what: "Same valve as relu1.", analogy: "" },
+  pool2:   { what: "Same 2×2 max as pool1: 16→8. We are now at 32 maps of 8×8.", analogy: "" },
+  flatten: { what: "Unrolls the 32×8×8 grid into one list of 2048 numbers. No weights, nothing lost; it just changes the shape so a fully-connected layer can read it.",
+             analogy: "Reading a grid of cells row by row into a single line." },
+  fc1:     { what: "Every one of the 2048 inputs connects to every one of 128 outputs: 2048×128 weights + 128 biases = 262,272 parameters, 98% of the whole model. It mixes all the spatial evidence into 128 summary features.",
+             analogy: "A committee of 128 members, each of whom listens to all 2048 reports and forms one opinion." },
+  relu3:   { what: "Same valve, on the 128 summary features.", analogy: "" },
+  dropout: { what: "During training, randomly zeroes a fraction of these 128 values each step so the next layer cannot rely on any single one. p = 0 in this config and always off at evaluation, so it is a pass-through here.",
+             analogy: "Practising with random team members absent so nobody becomes irreplaceable." },
+  fc2:     { what: "128 → 10: one raw score ('logit') per class. The highest score is the prediction. The bar chart below applies softmax, which turns the 10 scores into probabilities that add up to 1.",
+             analogy: "Ten judges, each asking 'how much does this look like my class?'" },
+};
+
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const fmt = n => n.toLocaleString();
+const shapeStr = s => s.length === 3 ? `${s[0]}×${s[1]}×${s[2]}` : `${s[0]}`;
+
+let current = 0;
+
+function renderMeta() {
+  const m = document.getElementById("meta");
+  const pill = DATA.trained ? `<span class="pill ok">weights: trained (${DATA.checkpoint})</span>`
+                            : `<span class="pill warn">weights: random initialisation — not trained yet</span>`;
+  m.innerHTML = `${pill}<span class="mono">${fmt(DATA.total_params)} trainable parameters</span><span class="mono">${DATA.table.length - 1} layers</span>`;
+}
+
+function renderPicker() {
+  const p = document.getElementById("picker");
+  DATA.images.forEach((im, i) => {
+    const b = el("button");
+    b.setAttribute("aria-pressed", i === current);
+    b.id = "pick-" + i;
+    b.innerHTML = `<img src="${im.image}" alt=""><small>${im.label_name} (${im.label})</small><small>train #${im.index}</small>`;
+    b.onclick = () => { current = i; document.querySelectorAll(".picker button").forEach((x, j) => x.setAttribute("aria-pressed", j === i)); renderLayers(); };
+    p.appendChild(b);
+  });
+}
+
+function renderRiver() {
+  const r = document.getElementById("river");
+  DATA.table.forEach((row, i) => {
+    if (i) r.appendChild(el("span", "arrow", "→"));
+    const n = el("div", "node");
+    const s = row.out_shape;
+    const box = el("div", "box", "");
+    if (s.length === 3) { const px = Math.max(22, s[1] * 2.2); box.style.width = px + "px"; box.style.height = px + "px"; box.style.borderWidth = Math.min(6, Math.ceil(s[0] / 6)) + "px"; }
+    else { box.style.width = Math.max(22, Math.min(120, s[0] / 17)) + "px"; box.style.height = "22px"; }
+    box.title = (s.length === 3 ? "channels × height × width" : "values") + " = " + shapeStr(s);
+    n.appendChild(box); n.appendChild(el("span", "name", shapeStr(s))); n.appendChild(el("span", "name", row.name));
+    r.appendChild(n);
+  });
+}
+
+function bars(values) {
+  const wrap = el("div", "bars");
+  if (values.length > 256) {                       // bin long vectors so the chart fits any screen
+    const k = Math.ceil(values.length / 256), out = [];
+    for (let i = 0; i < values.length; i += k) { const c = values.slice(i, i + k); out.push(c.reduce((a, b) => a + b, 0) / c.length); }
+    values = out; wrap.style.gap = "0";
+  }
+  const mx = Math.max(...values.map(Math.abs)) || 1;
+  values.forEach(v => { const s = el("span", v < 0 ? "neg" : ""); s.style.height = (Math.abs(v) / mx * 100) + "%"; s.title = v.toFixed(3); wrap.appendChild(s); });
+  return wrap;
+}
+
+function renderLayers() {
+  const im = DATA.images[current];
+  const host = document.getElementById("layers");
+  host.innerHTML = "";
+  im.layers.forEach((L, i) => {
+    const row = DATA.table[i];
+    const prev = i ? im.layers[i - 1].shape : null;
+    const isPure = row.params === 0 && L.name !== "input";
+    const card = el("article", "card" + (isPure ? " pure" : ""));
+    card.id = "layer-" + L.name;
+    const head = el("div", "card-head");
+    head.appendChild(el("span", "eyebrow", L.name === "input" ? "input" : `step ${i} · ${row.type}`));
+    head.appendChild(el("h2", "", L.name));
+    const sh = prev ? `${shapeStr(prev)} <b>→ ${shapeStr(L.shape)}</b>` : `<b>${shapeStr(L.shape)}</b>`;
+    head.appendChild(el("span", "shape", sh + (row.params ? ` · ${fmt(row.params)} params` : " · no params")));
+    card.appendChild(head);
+
+    const t = TEXT[L.name];
+    if (t) { const ex = el("div", "explain"); ex.appendChild(el("p", "", t.what)); if (t.analogy) ex.appendChild(el("p", "analogy", t.analogy)); card.appendChild(ex); }
+
+    const st = el("div", "stats");
+    st.innerHTML = `<span>min <b>${L.min.toFixed(3)}</b></span><span>max <b>${L.max.toFixed(3)}</b></span><span>mean <b>${L.mean.toFixed(3)}</b></span><span>zeros <b>${(L.zero_frac * 100).toFixed(0)}%</b></span>`;
+    card.appendChild(st);
+
+    if (L.name === "conv1") {
+      card.appendChild(el("span", "eyebrow", "the 16 stencils (3×3, shown as RGB)"));
+      const kg = el("div", "grid");
+      DATA.conv1_kernels.forEach((k, j) => { const f = el("figure"); f.innerHTML = `<img class="kernel" src="${k}" alt="kernel ${j}"><figcaption>k${j}</figcaption>`; kg.appendChild(f); });
+      card.appendChild(kg);
+      card.appendChild(el("span", "eyebrow", "output: 16 feature maps, 32×32 each"));
+    }
+
+    if (L.maps) {
+      const g = el("div", "grid");
+      if (L.name === "input") {
+        const f = el("figure"); f.innerHTML = `<img class="big" src="${im.image}" alt="${im.label_name}"><figcaption>RGB together</figcaption>`; g.appendChild(f);
+        ["R", "G", "B"].forEach((c, j) => { const f2 = el("figure"); f2.innerHTML = `<img class="big" src="${L.maps[j]}" alt="${c} channel"><figcaption>${c} channel</figcaption>`; g.appendChild(f2); });
+      } else {
+        L.maps.forEach((m, j) => { const f = el("figure"); f.innerHTML = `<img src="${m}" alt="map ${j}"><figcaption>ch ${j}</figcaption>`; g.appendChild(f); });
+      }
+      card.appendChild(g);
+    } else if (L.name === "fc2") {
+      card.appendChild(el("span", "eyebrow", "raw scores (logits), one per class; orange = negative"));
+      card.appendChild(bars(L.values));
+      card.appendChild(el("span", "eyebrow", "after softmax — probabilities"));
+      const cb = el("div", "classbars");
+      DATA.class_names.forEach((c, j) => {
+        const p = im.probs[j];
+        const isTrue = j === im.label, isPred = j === im.predicted;
+        cb.insertAdjacentHTML("beforeend",
+          `<span class="label ${isTrue ? "true" : ""}" style="${isTrue ? "color:var(--accent);font-weight:600" : ""}">${c}${isTrue ? " ✓" : ""}${isPred ? " ←" : ""}</span><div class="track"><div class="fill" style="width:${(p * 100).toFixed(1)}%"></div></div><span class="mono">${(p * 100).toFixed(1)}%</span>`);
+      });
+      card.appendChild(cb);
+      card.appendChild(el("p", "note", DATA.trained
+        ? `✓ marks the true class, ← the model's pick.`
+        : `Random weights, so every class sits near 10% and the pick (←) is a coin toss. ✓ marks the true class. Re-run <span class="mono">scripts/visualize_layers.py --checkpoint …</span> after training and the bar for ✓ should dominate.`));
+    } else if (L.values) {
+      card.appendChild(el("span", "eyebrow", `${L.values.length} values${L.values.length > 256 ? " (averaged into 256 bins to fit)" : ""}; orange = negative`));
+      card.appendChild(bars(L.values));
+    }
+    host.appendChild(card);
+  });
+}
+
+function renderTable() {
+  const t = document.getElementById("ptable");
+  t.innerHTML = `<tr><th>layer</th><th>type</th><th>output shape</th><th style="text-align:right">params</th><th style="text-align:right">share</th></tr>` +
+    DATA.table.map(r => `<tr><td>${r.name}</td><td>${r.type}</td><td>${shapeStr(r.out_shape)}</td><td class="num">${fmt(r.params)}</td><td class="num">${(r.params / DATA.total_params * 100).toFixed(1)}%</td></tr>`).join("");
+}
+
+renderMeta(); renderPicker(); renderRiver(); renderLayers(); renderTable();
+</script>
